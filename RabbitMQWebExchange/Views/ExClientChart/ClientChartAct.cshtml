@@ -1,0 +1,192 @@
+﻿
+@{
+    Layout = null;
+}
+
+<!DOCTYPE html>
+
+<html>
+<head>
+    <script src="~/Scripts/Chart.min.js"></script>
+    <script src="~/Scripts/jquery-3.6.0.min.js"></script>
+    <script src="~/Scripts/bootstrap.min.js"></script>
+    <link href="~/Content/bootstrap.min.css" rel="stylesheet" />
+    <meta name="viewport" content="width=device-width" />
+    <title>ClientChartAct</title>
+</head>
+<body>
+    <button type="button" id="call">Başlat</button>
+    <button type="button" id="halt">Durdur </button>
+    <div id="chart_container" style="position: relative; height:50vh; width:90vw">
+        <canvas id="line_chart" style="position: relative; height:100vh; width:100vw"></canvas>
+    </div>
+</body>
+</html>
+
+
+<script>
+
+    function uuidv4() {
+        return ([1e7] + -1e3 + -4e3 + -8e3 + -1e11).replace(/[018]/g, c =>
+            (c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> c / 4).toString(16)
+        );
+    }
+
+    var uidv4 = uuidv4();
+    console.log('ilk tab guid'+ uidv4);
+    console.log('ilk neresi çalışıyor');
+    $.get("/ExClientChart/GetResult?GuidInCome=@ViewBag.value&GuidTab="+uidv4, null, DataBind);
+    document.getElementById("call").addEventListener("click", callFunction);
+    document.getElementById("halt").addEventListener("click", haltFunction);
+    var ResultsForChart = [];
+    var timeLabelArray = [];
+    var valuesSayilar = [];
+    var line_chart;
+    var pushLabels = [];
+    var pushValues = [];
+
+    //=================================================================================================================
+
+    function DataBind(Result) {
+        ResultsForChart = Result;
+
+        console.log('Gelen bilgi======================================');
+
+        console.log(Result);
+    }
+
+   //====================================================================================================================
+
+    function DrawChart(ResultsForChart) {
+        for (var i = 0; i < ResultsForChart.length; i++) {
+            timeLabelArray[i] = ResultsForChart[i].timestamp;
+        }
+
+        for (var i = 0; i < ResultsForChart.length; i++) {
+            valuesSayilar[i] = ResultsForChart[i].Data;
+        }
+
+        const data = {
+            labels: timeLabelArray,
+            datasets: [{
+                data: valuesSayilar,
+                label: "Data",
+                borderColor: "#3e95cd",
+                fill: false
+            },
+            ]
+        };
+
+        const config = {
+            type: 'line',
+            data,
+            options: {
+                bezierCurve: false,
+                animation: false,
+                scales: {
+
+                    xAxes: [{
+                        ticks: {
+
+                            autoSkip: false,
+                            beginAtZero: true,
+
+                            callback: function (value, index, values) {
+
+                                var bas = 0, orta = Math.floor((values.length) / 2), son = values.length - 1;
+                                if (index == bas || index == orta || index == son)
+                                    return value;
+                            }
+                        }
+                    }],
+                    yAxes: [{
+                        display: true,
+                        ticks: {
+                            beginAtZero: true,
+                            steps: 10,
+                            max: 300
+                        }
+                    }]
+                },
+
+                title: {
+                    display: true,
+                    text: ' Last 15 Min Message Inserts for: ' + "@ViewBag.value"
+                }
+
+            }
+        };
+
+         line_chart = new Chart(
+            document.getElementById("line_chart"),
+            config
+        );
+
+    }
+
+    //===============================================================================================================
+
+    function UpdateChart() {
+
+        console.log('update tab guid' + uidv4);
+
+        for (var i = 0; i < pushLabels.length; i++) {
+            line_chart.data.labels.push(pushLabels[i]);
+        }
+
+        for (var i = 0; i < pushValues.length; i++) {
+            line_chart.data.datasets[0].data.push(pushValues[i]);
+        }
+
+
+
+
+            line_chart.update();
+
+            console.log('Updated');
+    }
+
+    //=======================================================================================================================
+
+    function callFunction() { intervalId = setInterval(function () {
+
+        $.get("/ExClientChart/GetResult?GuidInCome=@ViewBag.value&GuidTab=" + uidv4, null, DataBind);
+
+            for (var i = 0; i < ResultsForChart.length; i++) {
+                pushLabels[i] = ResultsForChart[i].timestamp;
+            }
+
+            for (var i = 0; i < ResultsForChart.length; i++) {
+                pushValues[i] = ResultsForChart[i].Data;
+            }
+
+            UpdateChart();
+
+            pushLabels = [];
+            pushValues = [];
+
+        }, 1000);
+    }
+
+    //====================================================================================================
+
+    function haltFunction() {
+
+        clearInterval(intervalId);
+
+    }
+    //=====================================================================================================
+
+    $(document).ready(function () {
+
+        console.log('Ready function');
+        $("#LoadingStatus").html("Loading....");
+
+        DrawChart(ResultsForChart);
+
+        ResultsForChart = [];
+
+        callFunction();
+    });
+
+</script>

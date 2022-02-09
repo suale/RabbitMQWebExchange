@@ -1,0 +1,75 @@
+﻿@model List<RabbitMQWebExchange.ServiceModels.RabbitMessage>
+@{
+    Layout = null;
+}
+
+
+<script src="~/Scripts/jquery-3.6.0.min.js"></script>
+<script src="~/Scripts/bootstrap.min.js"></script>
+<link href="~/Content/bootstrap.min.css" rel="stylesheet" />
+
+
+<div class="container" style="margin-top:3%">
+    <table id="mytable" class="table table-striped">
+        <thead>
+            <tr>
+                <th>Client No</th>
+                <th>GUID</th>
+                <th>Publish Time</th>
+            </tr>
+        </thead>
+        <tbody id="SetClientList">
+            <tr id="LoadingStatus" style="color:red"></tr>
+        </tbody>
+    </table>
+</div>
+
+<script>
+    
+    $("#LoadingStatus").html("Loading....");
+    $.get("/QueueReceiver/GetClientList", null, DataBind);
+    function DataBind(ClientList) {
+
+            $('#mytable tr:not(:first)').remove();
+            var SetData = $("#SetClientList");
+            var table = document.getElementById("mytable");
+
+        for (var i = 0; i <= ClientList.length; i++) {
+            var currentRow = table.rows[i];
+            var createClickHandler = function (row) {
+                return function () {
+                    var cell = row.getElementsByTagName("td")[1];
+                    var id = cell.textContent;
+                    var url = '@Url.Action("ClientChartAct", "ExClientChart", new { id = "__id__" })';
+                   // window.location.pathname = url.replace('__id__', id);
+                    window.open(url.replace('__id__', id), '_blank');
+                    $.get("/QueueReceiver/GetClientList", null, DataBind);
+               };
+            };
+            currentRow.onclick = createClickHandler(currentRow);
+            var date = ClientList[i].timestamp;
+            var Data = "<tr class='row_" + ClientList[i].ClientGUID + "'>" +
+                "<td>" + i + "</td>" +
+                "<td>" + ClientList[i].ClientGUID + "</td>" +
+                "<td>" + date + "</td>" +
+
+                "</tr>";
+            SetData.append(Data);
+            $("#LoadingStatus").html(" ");
+            console.log(JSON.stringify(ClientList));
+        }
+    }
+    $(document).ready(function () {
+        $.get("/QueueReceiver/GetClientList", null, DataBind);
+        var intervalId = setInterval(function () {
+
+
+            $.get("/QueueReceiver/GetClientList", null, DataBind);
+            /*DataBind(ClientList);*/
+           
+        }, 3000);
+
+    });
+
+
+</script>
